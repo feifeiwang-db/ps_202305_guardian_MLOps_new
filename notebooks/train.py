@@ -86,9 +86,9 @@ experiment = mlflow.set_experiment(experiment_destination) # set experiment
 with mlflow.start_run(run_name='my_run_xgboost') as run:
   num_estimators = 1000
   np.random.seed(0)
-  model = XGBRegressor(n_estimators=num_estimators, max_depth=7, eta=0.1, random_state=0, seed = 1000)  #, subsample=0.7, colsample_bytree=0.8, colsample_bylevel=0.8, colsample_bynode=0.8
+  model = XGBRegressor(n_estimators=num_estimators, max_depth=7, eta=0.1, subsample=1, colsample_bytree=1, random_state=0, seed=1000)  #, subsample=0.7, colsample_bytree=0.8, colsample_bylevel=0.8, colsample_bynode=0.8
   model.fit(X_train, y_train)
-
+ 
   mlflow.log_param('n_estimators', num_estimators)
   y_pred = model.predict(X_train)
   accuracy = evaluate_accuracy(model, X_train, y_train)
@@ -137,7 +137,39 @@ print("param1 model_name: ", model_name)
 print("param2 experiment_destination: ", experiment_destination)
 print("param3 model_version_to_submit: ", model_version_to_submit)
 print("param4 train_data_set_name: ", train_data_set_name)
-print("param5 accuracy: ", accuracy) # to delete: 618.197331327945,  600.8278826822209, 525.0411580787095
+print("param5 accuracy: ", accuracy) # to delete: 618.197331327945,  600.8278826822209, 525.0411580787095 614.0744259892678 518.4774714376484
+
+# COMMAND ----------
+
+# can delete
+# params = {
+#     'max_depth': 7,
+#    # 'min_child_weight': 1,
+#     'eta': 0.1,
+#     'subsample': 1,
+#     'colsample_bytree': 1,
+#    # "objective": "reg:squarederror",
+#    # 'booster': 'gbtree',
+#    # 'n_jobs': 10,
+#    # 'validate_parameters':'True',
+#    # 'alpha': 0.2,
+#    # 'lambda': 0.001,
+#    # 'colsample_bylevel': 0.9,
+#    # 'gamma': 0.01,
+#    # 'max_delta_step': 0.1,
+#     'random_state': 0, 
+#     'seed' :1000
+# }
+
+ # model.fit(
+  #   X_train,
+  #   y_train,
+  #  # early_stopping_rounds=100,
+  #  # verbose=True,
+  #  # eval_metric="rmse",
+  #  # eval_set=[(X_train, y_train)],
+  # )
+
 
 # COMMAND ----------
 
@@ -145,4 +177,4 @@ print("param5 accuracy: ", accuracy) # to delete: 618.197331327945,  600.8278826
 
 # COMMAND ----------
 
-
+#add a comment

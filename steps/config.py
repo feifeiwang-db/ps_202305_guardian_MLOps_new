@@ -12,7 +12,7 @@ my_model_name = "feifei_model"
 print("my_model_name: ", my_model_name)
 
 # param3
-model_version_to_submit = "16" # the final version of the local model that the user would like to submit to PR
+model_version_to_submit = "33" # the final version of the local model that the user would like to submit to PR
 print("model_version_to_submit: ", model_version_to_submit)
 
 # param4

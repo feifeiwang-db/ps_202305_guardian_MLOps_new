@@ -1,0 +1,107 @@
+name: Run pre-merge Databricks tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  # Replace this value with your workspace instance name.
+  DATABRICKS_HOST: https://db-sme-demo-ml-practice.cloud.databricks.com
+
+jobs:
+  unit-test-notebook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Run test notebook
+        uses: databricks/run-notebook@main
+        with:
+          databricks-token: ${{ secrets.FEIFEI_SERVICE_PRINCIPAL2 }}
+
+          local-notebook-path: notebooks/run_unit_tests.py
+
+          existing-cluster-id: 0510-234707-no9aa7ed
+
+          git-commit: "${{ github.event.pull_request.head.sha }}"
+
+          # Grant all users view permission on the notebook's results, so that they can
+          # see the result of the notebook, if they have related access permissions.
+          access-control-list-json: >
+            [
+              {
+                "group_name": "users",
+                "permission_level": "CAN_VIEW"
+              }
+            ]
+          run-name: "EDA transforms helper module unit tests"
+
+
+  integration_test:
+    needs: unit-test-notebook
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Run integration notebook
+        uses: databricks/run-notebook@main
+        with:
+          databricks-token:  ${{ secrets.FEIFEI_SERVICE_PRINCIPAL2 }}
+
+          local-notebook-path: notebooks/train.py
+
+          existing-cluster-id: 0510-234707-no9aa7ed
+
+          git-commit: "${{ github.event.pull_request.head.sha }}"
+
+          # Grant all users view permission on the notebook's results, so that they can
+          # see the result of the notebook, if they have related access permissions.
+          access-control-list-json: >
+            [
+              {
+                "group_name": "users",
+                "permission_level": "CAN_VIEW"
+              }
+            ]
+          run-name: "The integration tests"
+
+          notebook-params-json: >
+            {
+              "model_name_prefix": "sp_",
+              "experiment_destination_prefix": "/staging/"
+            }    
+
+  validate_test:
+    needs: integration_test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Run validate notebook
+        uses: databricks/run-notebook@main
+        with:
+          databricks-token:  ${{ secrets.FEIFEI_SERVICE_PRINCIPAL2 }}
+
+          local-notebook-path: notebooks/validate.py
+
+          existing-cluster-id: 0510-234707-no9aa7ed
+
+          git-commit: "${{ github.event.pull_request.head.sha }}"
+
+          # Grant all users view permission on the notebook's results, so that they can
+          # see the result of the notebook, if they have related access permissions.
+          access-control-list-json: >
+            [
+              {
+                "group_name": "users",
+                "permission_level": "CAN_VIEW"
+              }
+            ]
+          run-name: "The validation tests"
