@@ -22,7 +22,7 @@ jobs:
         with:
           databricks-token: ${{ secrets.FEIFEI_SERVICE_PRINCIPAL2 }}
 
-          local-notebook-path: notebooks/run_unit_tests.py
+          local-notebook-path: staging/run_unit_tests.py
 
           existing-cluster-id: 0510-234707-no9aa7ed
 
@@ -53,7 +53,7 @@ jobs:
         with:
           databricks-token:  ${{ secrets.FEIFEI_SERVICE_PRINCIPAL2 }}
 
-          local-notebook-path: notebooks/train.py
+          local-notebook-path: staging/train.py
 
           existing-cluster-id: 0510-234707-no9aa7ed
 
@@ -89,7 +89,7 @@ jobs:
         with:
           databricks-token:  ${{ secrets.FEIFEI_SERVICE_PRINCIPAL2 }}
 
-          local-notebook-path: notebooks/validate.py
+          local-notebook-path: staging/validate.py
 
           existing-cluster-id: 0510-234707-no9aa7ed
 

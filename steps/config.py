@@ -4,7 +4,7 @@ import pandas as pd
 from mlflow import MlflowClient
 client = MlflowClient()
 
-data_path = 'https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/hospitalizations/covid-hospitalizations.csv'
+data_path = '../raw_data/covid_hospital.csv' # original source came from 'https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/hospitalizations/covid-hospitalizations.csv', but it is updated twice a day, not static; Thus, for testing purpose, using a static csv file here
 print(f'Data path: {data_path}')
 
 # param1
@@ -12,7 +12,7 @@ my_model_name = "feifei_model"
 print("my_model_name: ", my_model_name)
 
 # param3
-model_version_to_submit = "33" # the final version of the local model that the user would like to submit to PR
+model_version_to_submit = "46" # the final version of the local model that the user would like to submit to PR
 print("model_version_to_submit: ", model_version_to_submit)
 
 # param4
@@ -50,3 +50,17 @@ def func_grab_model_based_on_name_and_version (model_name, model_version):
   '''
   model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
   return model
+
+
+# def func_grab_workspace_name():
+#   '''
+#   return the workspace name
+#   '''
+# #   list_info_workspace = eval(spark.conf.get("spark.databricks.clusterUsageTags.clusterAllTags"))
+# #   for i in range(0, len(list_info_workspace)):
+# #     dict_i = list_info_workspace[i]
+# #     if dict_i['key'] == 'dd_workspace':
+# #       return dict_i['value']  #in Azure
+# #   return "unknown"
+
+#   return spark.conf.get("spark.databricks.workspaceUrl").split('.')[0] #in AWS

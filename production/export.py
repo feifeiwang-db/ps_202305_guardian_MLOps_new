@@ -97,7 +97,7 @@ def func_should_export_this_production_version_or_not (model_name: str):
     #print("latest_description_production_version: ", latest_description_production_version)
     if "Exported Already On" in latest_description_production_version:
       bool_should_export_this_production_version = False  
-      print("Though this model:", model_name,"has latest Production stage in version",latest_production_version, ", it has previously already been exported. Thus, no actions here. If you still want to export this version again, please delete or modify the description of this version, and rerun code/pipeline")  
+      print("Though this model:", model_name,"has latest Production stage in version",latest_production_version, ", it has previously already been exported. Thus, NO ACTIONS here. If you still want to export this version again, please delete or modify the description of this version, and rerun code/pipeline; Or if you meant to transition your latest version to 'Production' stage first, then rerun code/pipeline to export it")  
       print("\n")
   return bool_should_export_this_production_version, latest_production_version, latest_description_production_version
 

@@ -46,10 +46,6 @@ jobs:
 
 
 
-#  env:
-#    # Replace this value with your workspace instance name.
-#    DATABRICKS_HOST: https://e2-demo-field-eng.cloud.databricks.com
-#https://stackoverflow.com/questions/65255558/github-action-how-to-deploy-release-on-multiple-environment
 
   import-notebook:
     needs: export-notebook
@@ -57,8 +53,7 @@ jobs:
     timeout-minutes: 15
 
     env:
-      DATABRICKS_HOST: https://db-sme-demo-ml-practice.cloud.databricks.com
-
+      DATABRICKS_HOST: https://e2-demo-west.cloud.databricks.com 
 
     steps:
       - name: Checkout repo
@@ -66,11 +61,47 @@ jobs:
       - name: Run import notebook
         uses: databricks/run-notebook@main
         with:
-          databricks-token:  ${{ secrets.FEIFEI_SERVICE_PRINCIPAL2 }} #${{ secrets.FEIFEI_SERVICE_PRINCIPAL_E2_DEMO_FIELD }}
+          databricks-token:  ${{ secrets.FEIFEI_SERVICE_PRINCIPAL_E2_DEMO_WEST_WS }} #${{ secrets.FEIFEI_SERVICE_PRINCIPAL2 }}
 
           local-notebook-path: production/import.py
 
-          existing-cluster-id: 0510-234707-no9aa7ed
+          existing-cluster-id: 0522-221123-y88o303d #0510-234707-no9aa7ed
+
+          git-commit: "${{ github.event.pull_request.head.sha }}"
+
+          # Grant all users view permission on the notebook's results, so that they can
+          # see the result of the notebook, if they have related access permissions.
+          access-control-list-json: >
+            [
+              {
+                "group_name": "users",
+                "permission_level": "CAN_VIEW"
+              }
+            ]
+          run-name: "Cut to release export then import"  
+
+
+
+
+  prediction-in-production-notebook:
+    needs: import-notebook
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DATABRICKS_HOST: https://e2-demo-west.cloud.databricks.com 
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Run prediction_in_production notebook
+        uses: databricks/run-notebook@main
+        with:
+          databricks-token:  ${{ secrets.FEIFEI_SERVICE_PRINCIPAL_E2_DEMO_WEST_WS }} #${{ secrets.FEIFEI_SERVICE_PRINCIPAL2 }}
+
+          local-notebook-path: production/prediction_in_production.py
+
+          existing-cluster-id: 0522-221123-y88o303d 
 
           git-commit: "${{ github.event.pull_request.head.sha }}"
 
@@ -84,3 +115,49 @@ jobs:
               }
             ]
           run-name: "Cut to release export then import"   
+          notebook-params-json: >
+            {
+              "model_name_prefix": "sp_"
+            } 
+ 
+
+
+
+  monitoring-notebook:
+    needs: prediction-in-production-notebook
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DATABRICKS_HOST: https://e2-demo-west.cloud.databricks.com 
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Run monitoring notebook
+        uses: databricks/run-notebook@main
+        with:
+          databricks-token:  ${{ secrets.FEIFEI_SERVICE_PRINCIPAL_E2_DEMO_WEST_WS }} #${{ secrets.FEIFEI_SERVICE_PRINCIPAL2 }}
+
+          local-notebook-path: production/monitoring.py
+
+          existing-cluster-id: 0522-221123-y88o303d 
+
+          git-commit: "${{ github.event.pull_request.head.sha }}"
+
+          # Grant all users view permission on the notebook's results, so that they can
+          # see the result of the notebook, if they have related access permissions.
+          access-control-list-json: >
+            [
+              {
+                "group_name": "users",
+                "permission_level": "CAN_VIEW"
+              }
+            ]
+          run-name: "Cut to release export then import"  
+
+          notebook-params-json: >
+            {
+              "model_name_prefix": "sp_"
+            } 
+ 
