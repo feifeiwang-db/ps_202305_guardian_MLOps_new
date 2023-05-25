@@ -8,18 +8,18 @@ data_path = '../raw_data/covid_hospital.csv' # original source came from 'https:
 print(f'Data path: {data_path}')
 
 # param1
-my_model_name = "feifei_model"
+my_model_name = "feifei_covid_model"
 print("my_model_name: ", my_model_name)
 
 # param3
-model_version_to_submit = "46" # the final version of the local model that the user would like to submit to PR
+model_version_to_submit = "6" # the final version of the local model that the user would like to submit to PR
 print("model_version_to_submit: ", model_version_to_submit)
 
 # param4
 train_data_set_name = "final_train"+"_"+my_model_name+"_"+model_version_to_submit # the exact data set used for training to generate the final model that the DS would like to PR for
 print("train_data_set_name: ", train_data_set_name)
 
-external_location_folder = "s3a://one-env/feifei_wang/mlfow_export_import_test" 
+external_location_folder = "s3a://one-env/feifei_wang/mlfow_export_import_new" 
 print("external_location_folder: ", external_location_folder)
 
 def func_grab_newest_version_number_of_a_model (model_name, stage="None"): 

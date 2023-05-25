@@ -25,51 +25,11 @@ def get_notebook_formats():
     if "" in notebook_formats: notebook_formats.remove("")
     return notebook_formats
 
-def func_todaysdate():
-  '''
-  return todays date in string format, such as "20230329" in PST time zone
-  '''
-  from datetime import datetime, timedelta
-  now_EST = datetime.today() - timedelta(hours=8)
-  todaysdate = now_EST.strftime('%Y_%m_%d')
-  todaysdate = todaysdate.replace("_", "")
-  return todaysdate
-
-def func_list_models_in_production(bool_print_info=False):
-  '''
-  This function is to find all existing model_name in the current workspace's model registry that at least has a Production stage.
-  var: bool_print_info: boolean variable, True to print details; False not to print details. 
-  rtn: list_models_having_production:list of model names that have "production"
-  '''
-  from pprint import pprint
-  list_models_having_production = []
-  #list_models_expect_to_export = []
-  for rm in client.search_registered_models():
-      dict_current_model = dict(rm)
-      list_model_stages = []
-      current_model_name = dict_current_model['name']
-      num_latest_versions = len(dict_current_model['latest_versions']) # the count of diverse stages that this model owns --- a subset of [None, Archive, Staging, Production]
-      if bool_print_info:
-        print("current_model_name: ", current_model_name)
-        print("num distinct latest versions: ", num_latest_versions)
-      for i in range(0, num_latest_versions):
-        current_stage = dict_current_model['latest_versions'][i].current_stage
-        current_version = dict_current_model['latest_versions'][i].version
-        current_description = dict_current_model['latest_versions'][i].description
-        list_model_stages = list_model_stages + [current_stage]
-        if bool_print_info:
-          print("latest stage: ", current_stage,", with version: ", current_version, ", description: ", current_description)
-      if "Production" in list_model_stages:
-        list_models_having_production = list_models_having_production + [current_model_name]
-      if bool_print_info:
-        print("\n") 
-  return list_models_having_production
-
 def func_should_export_this_production_version_or_not (model_name: str):
   '''
   This function is to determine if this model has a production version that needs to be exported.
   1. Make sure this model at least have some versions in production stage
-  2. If "1" is yes, then check if the latest production version's description contains "Exported Already On". If contains, then should not export this model again, if no, then we should export it.
+  2. If "1" is yes, then check if the latest production version's description contains "Already Exported ". If contains, then should not export this model again, if no, then we should export it.
   param: model_name: string, the model's name
   rtn: bool_should_export_this_production_version: boolean. Yes means
   '''
@@ -82,8 +42,6 @@ def func_should_export_this_production_version_or_not (model_name: str):
           list_production_versions = list_production_versions + [vversion]
           current_description = mv.description
           dict_production_verions[vversion] = current_description
-          # print("Production version: ", vversion)
-          # print("current description: ", current_description) 
   if list_production_versions==[]:
     bool_should_export_this_production_version = False
     latest_production_version = "-1000"
@@ -95,7 +53,7 @@ def func_should_export_this_production_version_or_not (model_name: str):
     latest_production_version = str(latest_production_version_int)
     #print("latest_production_version: ", latest_production_version)
     #print("latest_description_production_version: ", latest_description_production_version)
-    if "Exported Already On" in latest_description_production_version:
+    if "Already Exported " in latest_description_production_version:
       bool_should_export_this_production_version = False  
       print("Though this model:", model_name,"has latest Production stage in version",latest_production_version, ", it has previously already been exported. Thus, NO ACTIONS here. If you still want to export this version again, please delete or modify the description of this version, and rerun code/pipeline; Or if you meant to transition your latest version to 'Production' stage first, then rerun code/pipeline to export it")  
       print("\n")
@@ -132,7 +90,7 @@ def func_export(model_name: str, latest_production_version: str, notebook_format
   
   old_name = output_dir + "/" + run_id + "/artifacts/runs:" #"runs:" caused issues
   new_name = output_dir + "/" + run_id + "/artifacts/runs"
-  dbutils.fs.mv(old_name, new_name, True) #rename that file path, so can copy later fine
+  dbutils.fs.mv(old_name, new_name, True) #rename that file path, so can copy later fine without seeing errors
   dbutils.fs.cp(output_dir, external_location, True)   
   print("Exported to external_location: ", external_with_run_id)    
 
@@ -144,8 +102,6 @@ def func_summary_table_if_exists_already(external_location: str, table_name: str
   rtn: bool_summary_table_exists_already boolean: check if this summary table already exists; If not, create an empty table with schema; if yes, return True
   rtn: summary_table_location string: the external location for where this summary delta table is 
   '''
-  # from delta.tables import *
-  # from pyspark.sql.functions import * 
   from delta.tables import DeltaTable
   summary_table_location = external_location+"/"+table_name
   try:
@@ -156,9 +112,8 @@ def func_summary_table_if_exists_already(external_location: str, table_name: str
           print("!!!! just created the external_location", external_location)
   bool_summary_table_exists_already = DeltaTable.isDeltaTable(spark, summary_table_location)
   if bool_summary_table_exists_already == False:
-      # Create or replace table with path and add properties
+      # create or replace table with path and add properties
       DeltaTable.createOrReplace(spark) \
-      .addColumn("todaysdate", "STRING") \
       .addColumn("from_workspace", "STRING") \
       .addColumn("exported_model_name", "STRING") \
       .addColumn("exported_model_version", "STRING") \
@@ -189,12 +144,6 @@ def func_grab_workspace_name():
   '''
   return the workspace name
   '''
-#   list_info_workspace = eval(spark.conf.get("spark.databricks.clusterUsageTags.clusterAllTags"))
-#   for i in range(0, len(list_info_workspace)):
-#     dict_i = list_info_workspace[i]
-#     if dict_i['key'] == 'dd_workspace':
-#       return dict_i['value']  #in Azure
-#   return "unknown"
   return spark.conf.get("spark.databricks.workspaceUrl").split('.')[0] #in AWS
 
 
@@ -220,19 +169,15 @@ def func_check_model_having_production_versions(model_name, checkstage = 'Produc
 output_dir_base = "dbfs:/home/mlflow_export"
 notebook_formats = get_notebook_formats() # format is always 'SOURCE' here
 stages = 'Production'
-todaysdate = func_todaysdate()
 original_workspace_name = func_grab_workspace_name()   
 
 # summary table related vars
 dbutils.widgets.text("model_name_prefix", "") # by default, it should be blank
 model_name = dbutils.widgets.get("model_name_prefix") + my_model_name
 
-# model_name = "sp_"+ my_model_name #sp model, only admin and SP are having access
-# model_name =  my_model_name #user controled, if user wants to run this export code
-
 external_export_summary_location = "%s/export_summary_delta"% (external_location_folder)
 external_export_summary_table_name = "export_summary.delta"
-temp_internal_table_name = "table_full_summary"
+temp_internal_table_name = "table_export_summary_new"
 bool_summary_table_exists_already, summary_table_location = func_summary_table_if_exists_already (external_export_summary_location, external_export_summary_table_name)
 
 print("export summary_table_location: ", summary_table_location)
@@ -241,11 +186,6 @@ print("bool_summary_table_exists_already: ", bool_summary_table_exists_already)
 # COMMAND ----------
 
 # DBTITLE 1,Export
-# list_models_having_production = func_list_models_in_production (bool_print_info=False) # find a list of models that have production stages
-# print("list_models_having_production: ", list_models_having_production)
-# assert model_name in list_models_having_production, "your model: "+model_name+" does not have a 'Production' stage, please manually transition the model stage from 'Staging' to 'Production' first" #optional additional testing, ensure engineers do not forget to transition the model to production
-# ### note: for some reason, the SP does not see the "sp_feifei_model", but seeing all other models that are having production version
-
 # make sure this model has at least one production version
 assert len(func_check_model_having_production_versions(model_name, "Production"))>0, f"There is no Production stage in your model: {model_name}. Please manually transition the latest tests passed Staging model into 'Production' stage, and rerun the code/pipeline"
 # store the export information into summary table
@@ -255,8 +195,8 @@ if bool_summary_table_exists_already == True:
   df_summary.write.mode("overwrite").saveAsTable(temp_internal_table_name)
 
 
-output_dir = "%s/%s/%s/%s" % (output_dir_base, "workspace_"+original_workspace_name, todaysdate, model_name)
-external_location = "%s/mlflowexportmodels/%s/%s/%s" % (external_location_folder, "workspace_"+original_workspace_name, todaysdate, model_name) # modify it to workspace/date/model_name level
+output_dir = "%s/%s/%s" % (output_dir_base, "workspace_"+original_workspace_name, model_name)
+external_location = "%s/mlflowexportmodels/%s/%s" % (external_location_folder, "workspace_"+original_workspace_name, model_name) # modify it to workspace/date/model_name level
 print("external_location for model", external_location)
 
 bool_should_export_this_production_version, latest_production_version, latest_description_production_version = func_should_export_this_production_version_or_not (model_name) 
@@ -270,18 +210,18 @@ if bool_should_export_this_production_version == True:
   external_with_run_id = "%s/%s" % (external_location, run_id)
 
   func_export(model_name, latest_production_version, notebook_formats, output_dir, external_location, run_id)
-  # 1. after the export, make the description of the original model's latest production version as "Exported Already On......"
+  # 1. after the export, make the description of the original model's latest production version as "Already Exported ......"
   client.update_model_version( 
   name=model_name,
   version=latest_production_version,
-  description="Exported Already On " + todaysdate + ", old description: " + latest_description_production_version
+  description="Already Exported " + ", old description: " + latest_description_production_version
   )
   # 2. construct the summary information from today about newly exported models
   df_summary_today = spark.createDataFrame(
   [
-      (todaysdate,"workspace_"+original_workspace_name, model_name, latest_production_version, external_with_run_id),  # create your data here, be consistent in the types.
+      ("workspace_"+original_workspace_name, model_name, latest_production_version, external_with_run_id),  # create your data here, be consistent in the types.
   ],
-  ['todaysdate','from_workspace','exported_model_name','exported_model_version', 'external_location'] 
+  ['from_workspace','exported_model_name','exported_model_version', 'external_location'] 
   )
   df_summary_today = df_summary_today.withColumn("timestamp", current_timestamp())
   df_summary_today.write.mode("append").option("mergeSchema", "true").saveAsTable(temp_internal_table_name)
@@ -298,7 +238,7 @@ if bool_should_export_this_production_version == True:
 # DBTITLE 1,Check the latest summary 
 from pyspark.sql.functions import col
 df_summary = spark.read.load(path = summary_table_location)
-display(df_summary.orderBy(col('timestamp').desc() , col('todaysdate').desc(), col('from_workspace'), col('exported_model_name')) )
+display(df_summary.orderBy(col('timestamp').desc()) )
 
 # COMMAND ----------
 

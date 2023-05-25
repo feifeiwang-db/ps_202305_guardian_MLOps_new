@@ -22,16 +22,6 @@ def get_notebook_formats():
     if "" in notebook_formats: notebook_formats.remove("")
     return notebook_formats
 
-def func_todaysdate():
-  '''
-  return todays date in string format, such as "20230329" in PST time zone
-  '''
-  from datetime import datetime, timedelta
-  now_EST = datetime.today() - timedelta(hours=8)
-  todaysdate = now_EST.strftime('%Y_%m_%d')
-  todaysdate = todaysdate.replace("_", "")
-  return todaysdate
-
 def func_summary_table_if_exists_already(external_location: str, table_name: str):
   '''
   param: external_location: the folder/container name that stores the summary delta table
@@ -53,7 +43,6 @@ def func_summary_table_if_exists_already(external_location: str, table_name: str
   if bool_summary_table_exists_already == False:
       # Create or replace table with path and add properties
       DeltaTable.createOrReplace(spark) \
-      .addColumn("todaysdate", "STRING") \
       .addColumn("from_workspace", "STRING") \
       .addColumn("imported_model_name", "STRING") \
       .addColumn("imported_model_version", "STRING") \
@@ -137,14 +126,13 @@ def func_list_models_in_production(bool_print_info=False): # same function from 
 # DBTITLE 1,Define hard coded variables
 # variables that don't need to change often, some are hard coded here
 notebook_formats = get_notebook_formats() # format is always 'SOURCE' here
-todaysdate = func_todaysdate()
 delete_model = False
 tmp_dbfs_di_base = "dbfs:/home/mlflow_export_import_test" # internal DBFS temp path for storing files
 
 # import summary table related vars
 external_import_summary_location = "%s/import_summary_delta"% (external_location_folder)
 external_import_summary_table_name = "import_summary.delta"
-temp_import_internal_table_name = "table_full_import_summary"
+temp_import_internal_table_name = "table_import_summary_new"
 
 external_export_summary_location = "%s/export_summary_delta"% (external_location_folder)
 external_export_summary_table_name = "export_summary.delta"
@@ -163,14 +151,6 @@ display(df_export_summary)
 
 
 print("filtered result: (if Query returned no results, that means there is nothing new to import today; else, below are the models that will be imported)")
-# complex filter logic: to only the versions that need to be imported
-# generate a filtered dataframe for only models from today with latest model version per workspace per model, if this df is not empty, then do the rest of import steps. 
-# df_export_summary2 = df_export_summary.withColumn("exported_model_version", df_export_summary["exported_model_version"].cast(IntegerType()))
-# df_to_import = df_export_summary2.filter(col('todaysdate')== todaysdate)
-# w = Window.partitionBy('from_workspace', 'exported_model_name')
-# df_to_import_filtered = df_to_import.withColumn('maxB', f.max('timestamp').over(w)).where(f.col('timestamp') == f.col('maxB')).drop('maxB')
-# bool_if_nothing_to_import = (len(df_to_import_filtered.head(1)) == 0)
-# display(df_to_import_filtered)
 
 # for simplicity, here we will always import the ONLY ONE model and version based on the latest timestamp from the export summary delta table
 df_to_import_filtered = df_export_summary.limit(1)
@@ -200,8 +180,8 @@ if bool_if_nothing_to_import == False: # if there are something need to be impor
     external_input_dir_original = row['external_location']
     external_input_dir = external_input_dir_original.rsplit("/", 1)[0] # do not include the last part of the run_id, the import tool import all experiments under the same model
     latest_production_version = row['exported_model_version']
-    model_name = "imported_" +  original_model_name #"imported_" + original_workspace_id + "_" +  original_model_name
-    tmp_dbfs_dir = "%s/workspace_%s/%s/%s" %(tmp_dbfs_di_base, original_workspace_id, todaysdate, original_model_name)
+    model_name = "imported_" +  original_model_name 
+    tmp_dbfs_dir = "%s/workspace_%s/%s" %(tmp_dbfs_di_base, original_workspace_id,original_model_name)
     experiment_name = "/Shared/mlflow_experiments/exp_%s" %(model_name)
 
     # before importing this model's new production version, if previously a production version already exists in production workspace, transition the former latest production version into archive stage:
@@ -237,9 +217,9 @@ if bool_if_nothing_to_import == False: # if there are something need to be impor
     # 2. construct the summary information from today about newly exported models
     df_import_summary_today = spark.createDataFrame(
     [
-        (todaysdate,"workspace_"+original_workspace_id, model_name, str(latest_production_version), external_input_dir_original),  # create your data here, be consistent in the types.
+        ("workspace_"+original_workspace_id, model_name, str(latest_production_version), external_input_dir_original),  # create your data here, be consistent in the types.
     ],
-    ['todaysdate','from_workspace','imported_model_name','imported_model_version', 'external_location'] 
+    ['from_workspace','imported_model_name','imported_model_version', 'external_location'] 
     )
     df_import_summary_today = df_import_summary_today.withColumn("timestamp", current_timestamp())
     df_import_summary_today.write.mode("append").option("mergeSchema", "true").saveAsTable(temp_import_internal_table_name)
@@ -254,4 +234,4 @@ if bool_if_nothing_to_import == False: # if there are something need to be impor
 # DBTITLE 1,Check the import summary table
 from pyspark.sql.functions import col
 df_summary = spark.read.load(path = import_summary_table_location)
-display(df_summary.orderBy(col('timestamp').desc(), col('todaysdate').desc(), col('from_workspace'), col('imported_model_name') ))
+display(df_summary.orderBy(col('timestamp').desc() ))
